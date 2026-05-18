@@ -14,7 +14,7 @@ public interface WaitlistEntryRepository extends JpaRepository<WaitlistEntry, Lo
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "3000"))
-    Optional<WaitlistEntry> findFirstByKlassIdAndStatusOrderBySequenceAsc(Long klassId, WaitlistStatus status);
+    Optional<WaitlistEntry> findFirstByKlassIdAndStatusOrderByIdAsc(Long klassId, WaitlistStatus status);
 
-    int countByKlassIdAndStatusAndSequenceLessThan(Long klassId, WaitlistStatus status, int sequence);
+    int countByKlassIdAndStatusAndIdLessThan(Long klassId, WaitlistStatus status, Long id);
 }

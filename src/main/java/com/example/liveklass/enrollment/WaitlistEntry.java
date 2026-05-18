@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
         name = "waitlist_entry",
         indexes = {
                 @Index(name = "idx_waitlist_registration", columnList = "registration_id", unique = true),
-                @Index(name = "idx_waitlist_klass_status_seq", columnList = "klass_id, status, sequence")
+                @Index(name = "idx_waitlist_klass_status", columnList = "klass_id, status")
         }
 )
 @Getter
@@ -37,9 +37,6 @@ public class WaitlistEntry {
     @Column(nullable = false)
     private Long userId;
 
-    @Column(nullable = false)
-    private int sequence;
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private WaitlistStatus status;
@@ -57,11 +54,10 @@ public class WaitlistEntry {
     private LocalDateTime cancelledAt;
 
     @Builder
-    public WaitlistEntry(Long registrationId, Long klassId, Long userId, int sequence) {
+    public WaitlistEntry(Long registrationId, Long klassId, Long userId) {
         this.registrationId = registrationId;
         this.klassId = klassId;
         this.userId = userId;
-        this.sequence = sequence;
         this.status = WaitlistStatus.WAITING;
     }
 
