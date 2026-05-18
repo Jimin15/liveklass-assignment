@@ -148,16 +148,16 @@ class EnrollmentServiceTest {
     @Test
     void 수강신청_자리없으면_WAITLISTED() {
         fullKlass.updateStatus(com.example.liveklass.klass.ClassStatus.OPEN);
-        ReflectionTestUtils.setField(fullKlass, "waitlistNextSequence", 3);
         given(klassRepository.findByIdWithLock(2L)).willReturn(Optional.of(fullKlass));
         given(registrationRepository.existsByKlassIdAndUserIdAndStatusIn(anyLong(), anyLong(), anyList()))
                 .willReturn(false);
 
         ClassRegistration savedReg = waitlistedReg(2L, 1L);
         given(registrationRepository.save(any())).willReturn(savedReg);
-        given(waitlistEntryRepository.save(any())).willReturn(
-                WaitlistEntry.builder().registrationId(100L).klassId(2L).userId(1L).sequence(3).build());
-        given(waitlistEntryRepository.countByKlassIdAndStatusAndSequenceLessThan(2L, WaitlistStatus.WAITING, 3))
+        WaitlistEntry savedEntry = WaitlistEntry.builder().registrationId(100L).klassId(2L).userId(1L).build();
+        ReflectionTestUtils.setField(savedEntry, "id", 3L);
+        given(waitlistEntryRepository.save(any())).willReturn(savedEntry);
+        given(waitlistEntryRepository.countByKlassIdAndStatusAndIdLessThan(2L, WaitlistStatus.WAITING, 3L))
                 .willReturn(2);
 
         EnrollmentResponse response = enrollmentService.enroll(1L, 2L);
@@ -175,9 +175,10 @@ class EnrollmentServiceTest {
 
         ClassRegistration savedReg = waitlistedReg(2L, 1L);
         given(registrationRepository.save(any())).willReturn(savedReg);
-        given(waitlistEntryRepository.save(any())).willReturn(
-                WaitlistEntry.builder().registrationId(100L).klassId(2L).userId(1L).sequence(1).build());
-        given(waitlistEntryRepository.countByKlassIdAndStatusAndSequenceLessThan(2L, WaitlistStatus.WAITING, 1))
+        WaitlistEntry firstEntry = WaitlistEntry.builder().registrationId(100L).klassId(2L).userId(1L).build();
+        ReflectionTestUtils.setField(firstEntry, "id", 1L);
+        given(waitlistEntryRepository.save(any())).willReturn(firstEntry);
+        given(waitlistEntryRepository.countByKlassIdAndStatusAndIdLessThan(2L, WaitlistStatus.WAITING, 1L))
                 .willReturn(0);
 
         EnrollmentResponse response = enrollmentService.enroll(1L, 2L);
@@ -260,7 +261,7 @@ class EnrollmentServiceTest {
     void 취소_대기자_성공() {
         ClassRegistration reg = waitlistedReg(1L, 1L);
         WaitlistEntry entry = WaitlistEntry.builder()
-                .registrationId(100L).klassId(1L).userId(1L).sequence(2).build();
+                .registrationId(100L).klassId(1L).userId(1L).build();
 
         given(registrationRepository.findByKlassIdAndUserIdAndStatusIn(eq(1L), eq(1L), anyList()))
                 .willReturn(Optional.of(reg));
@@ -287,7 +288,7 @@ class EnrollmentServiceTest {
                 .willReturn(Optional.of(reg));
         given(klassRepository.findByIdWithLock(1L)).willReturn(Optional.of(openKlass));
         given(enrollmentRepository.findByRegistrationIdWithLock(100L)).willReturn(Optional.of(enrollment));
-        given(waitlistEntryRepository.findFirstByKlassIdAndStatusOrderBySequenceAsc(eq(1L), eq(WaitlistStatus.WAITING)))
+        given(waitlistEntryRepository.findFirstByKlassIdAndStatusOrderByIdAsc(eq(1L), eq(WaitlistStatus.WAITING)))
                 .willReturn(Optional.empty());
 
         EnrollmentResponse response = enrollmentService.cancel(1L, 1L);
@@ -334,7 +335,7 @@ class EnrollmentServiceTest {
         given(enrollmentRepository.findByRegistrationId(100L)).willReturn(Optional.of(enrollment)); // fast-fail
         given(klassRepository.findByIdWithLock(1L)).willReturn(Optional.of(openKlass));
         given(enrollmentRepository.findByRegistrationIdWithLock(100L)).willReturn(Optional.of(enrollment)); // post-lock
-        given(waitlistEntryRepository.findFirstByKlassIdAndStatusOrderBySequenceAsc(eq(1L), eq(WaitlistStatus.WAITING)))
+        given(waitlistEntryRepository.findFirstByKlassIdAndStatusOrderByIdAsc(eq(1L), eq(WaitlistStatus.WAITING)))
                 .willReturn(Optional.empty());
 
         EnrollmentResponse response = enrollmentService.cancel(1L, 1L);
@@ -355,13 +356,13 @@ class EnrollmentServiceTest {
         ReflectionTestUtils.setField(waitedReg, "id", 200L);
 
         WaitlistEntry waitedEntry = WaitlistEntry.builder()
-                .registrationId(200L).klassId(1L).userId(2L).sequence(1).build();
+                .registrationId(200L).klassId(1L).userId(2L).build();
 
         given(registrationRepository.findByKlassIdAndUserIdAndStatusIn(eq(1L), eq(1L), anyList()))
                 .willReturn(Optional.of(reg));
         given(klassRepository.findByIdWithLock(1L)).willReturn(Optional.of(openKlass));
         given(enrollmentRepository.findByRegistrationIdWithLock(100L)).willReturn(Optional.of(enrollment));
-        given(waitlistEntryRepository.findFirstByKlassIdAndStatusOrderBySequenceAsc(eq(1L), eq(WaitlistStatus.WAITING)))
+        given(waitlistEntryRepository.findFirstByKlassIdAndStatusOrderByIdAsc(eq(1L), eq(WaitlistStatus.WAITING)))
                 .willReturn(Optional.of(waitedEntry));
         given(registrationRepository.findById(200L)).willReturn(Optional.of(waitedReg));
         given(enrollmentRepository.save(any())).willReturn(Enrollment.builder().registrationId(200L).build());
@@ -392,14 +393,14 @@ class EnrollmentServiceTest {
         ReflectionTestUtils.setField(waitedReg, "id", 200L);
 
         WaitlistEntry waitedEntry = WaitlistEntry.builder()
-                .registrationId(200L).klassId(1L).userId(2L).sequence(1).build();
+                .registrationId(200L).klassId(1L).userId(2L).build();
 
         given(registrationRepository.findByKlassIdAndUserIdAndStatusIn(eq(1L), eq(1L), anyList()))
                 .willReturn(Optional.of(reg));
         given(enrollmentRepository.findByRegistrationId(100L)).willReturn(Optional.of(enrollment)); // fast-fail
         given(klassRepository.findByIdWithLock(1L)).willReturn(Optional.of(openKlass));
         given(enrollmentRepository.findByRegistrationIdWithLock(100L)).willReturn(Optional.of(enrollment)); // post-lock
-        given(waitlistEntryRepository.findFirstByKlassIdAndStatusOrderBySequenceAsc(eq(1L), eq(WaitlistStatus.WAITING)))
+        given(waitlistEntryRepository.findFirstByKlassIdAndStatusOrderByIdAsc(eq(1L), eq(WaitlistStatus.WAITING)))
                 .willReturn(Optional.of(waitedEntry));
         given(registrationRepository.findById(200L)).willReturn(Optional.of(waitedReg));
         given(enrollmentRepository.save(any())).willReturn(Enrollment.builder().registrationId(200L).build());

@@ -50,9 +50,6 @@ public class Klass {
     private int reservedCount = 0;
 
     @Column(nullable = false)
-    private int waitlistNextSequence = 1;
-
-    @Column(nullable = false)
     private LocalDate startDate;
 
     @Column(nullable = false)
@@ -82,7 +79,6 @@ public class Klass {
         this.endDate = endDate;
         this.status = ClassStatus.DRAFT;
         this.reservedCount = 0;
-        this.waitlistNextSequence = 1;
     }
 
     public void updateStatus(ClassStatus newStatus) {
@@ -104,10 +100,6 @@ public class Klass {
             throw new BusinessException(ErrorCode.RESERVED_COUNT_UNDERFLOW);
         }
         this.reservedCount--;
-    }
-
-    public int assignNextWaitlistSequence() {
-        return this.waitlistNextSequence++;
     }
 
     public boolean isFull() {

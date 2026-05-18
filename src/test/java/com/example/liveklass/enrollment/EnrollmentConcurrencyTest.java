@@ -101,15 +101,14 @@ class EnrollmentConcurrencyTest {
         assertThat(pendingCount).isEqualTo(1);
         assertThat(waitlistedCount).isEqualTo(threadCount - 1);
 
-        // Waitlist sequences must be unique and contiguous starting from 1
-        List<Integer> sequences = waitlistEntryRepository.findAll().stream()
+        // Waitlist order is determined by id (auto-increment = insertion order)
+        List<Long> waitlistIds = waitlistEntryRepository.findAll().stream()
                 .filter(e -> e.getStatus() == WaitlistStatus.WAITING)
-                .map(WaitlistEntry::getSequence)
+                .map(WaitlistEntry::getId)
                 .sorted()
                 .toList();
-        for (int i = 0; i < sequences.size(); i++) {
-            assertThat(sequences.get(i)).isEqualTo(i + 1);
-        }
+        assertThat(waitlistIds).hasSize((int) waitlistedCount);
+        assertThat(waitlistIds).doesNotHaveDuplicates();
     }
 
     @Test
