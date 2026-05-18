@@ -79,10 +79,12 @@ docker-compose.yml 설정 기준:
 ### 3. 테스트 실행
 
 ```bash
+# 전체 테스트 (H2, Docker 불필요)
 ./gradlew test
-```
 
-H2 In-Memory DB를 사용하므로 별도 DB 설정 없이 실행됩니다.
+# MySQL 동시성 테스트 (Docker 필요)
+./gradlew concurrencyTest
+```
 
 ---
 
@@ -144,7 +146,7 @@ CONFIRMED 취소 시 취소 기한 검증을 락 전후 두 번 수행합니다.
 
 중복 신청 방지는 애플리케이션 레벨 검사에만 의존합니다. 현재 구현에서는 비관적 락 안에서 중복 여부를 확인하므로 대부분의 경우 안전하지만, DB 레벨 안전장치가 없습니다. 실서비스라면 `PENDING/CONFIRMED/WAITLISTED` 상태일 때만 유니크 제약이 동작하는 조건부 유니크 인덱스(`active_key` 컬럼 + `NULL` 중복 허용)를 추가해 이중 방어를 구성하는 것이 안전합니다.
 
-동시성 테스트는 H2 in-memory DB로 실행됩니다. H2의 `SELECT FOR UPDATE`는 MySQL과 완전히 동일하게 동작하지 않으므로 H2에서 통과하더라도 MySQL 환경에서 동작을 보장하지 않습니다. 정확한 검증은 Testcontainers 기반 MySQL 통합 테스트로 수행해야 합니다.
+동시성 테스트는 Testcontainers 기반 MySQL 8 환경(`EnrollmentConcurrencyMysqlTest`)에서 검증합니다.
 
 목록 조회 API(`getMyEnrollments`, `getEnrollmentsByKlass`)에 N+1 문제가 있습니다. 현재는 `class_registration` 목록을 조회한 뒤 각 건마다 `enrollment`와 `klass`를 별도로 조회합니다. 실서비스에서 건수가 많아지면 `IN` 쿼리로 배치 로딩하거나 JOIN으로 개선이 필요합니다.
 
@@ -256,12 +258,11 @@ WAITLISTED → CANCELLED  (대기 포기)
 ## 테스트 실행 방법
 
 ```bash
-# 전체 테스트 실행 (H2, Docker 불필요)
+# 전체 테스트 (H2, Docker 불필요)
 ./gradlew test
 
-# 특정 클래스만 실행
-./gradlew test --tests "com.example.liveklass.enrollment.EnrollmentServiceTest"
-./gradlew test --tests "com.example.liveklass.enrollment.EnrollmentConcurrencyTest"
+# MySQL Testcontainers 동시성 테스트 (Docker 필요)
+./gradlew concurrencyTest
 ```
 
 ### 테스트 구성
@@ -270,10 +271,11 @@ WAITLISTED → CANCELLED  (대기 포기)
 |--------|------|------------|
 | `EnrollmentServiceTest` | 단위 테스트 (Mockito) | 신청(자리 있음/없음/중복/사용자 없음), 확정(성공/PENDING 아님/enrollment 상태/deadline 7일), 취소(PENDING/CONFIRMED/WAITLISTED/기한 초과/기한 null/이미 취소/대기자 승격), 목록 조회(position 반환/권한) |
 | `KlassServiceTest` | 단위 테스트 (Mockito) | 강의 생성/조회/상태 변경 비즈니스 로직 검증 |
-| `EnrollmentConcurrencyTest` | 동시성 통합 테스트 (`@SpringBootTest`) | 동시 신청 시 정원 초과 없음, reservedCount 정합성 |
+| `EnrollmentConcurrencyTest` | 동시성 통합 테스트 (H2) | 동시 신청 시 정원 초과 없음, reservedCount 정합성 |
+| `EnrollmentConcurrencyMysqlTest` | 동시성 통합 테스트 (MySQL Testcontainers) | 실제 MySQL `SELECT FOR UPDATE` 환경에서 정원 초과 없음, reservedCount 정합성, 취소 후 대기자 자동 승격 |
 | `LiveklassApplicationTests` | 컨텍스트 로드 테스트 | 스프링 컨텍스트 정상 로드 확인 |
 
 ### 동시성 테스트 주의사항
 
-동시성 테스트는 H2 in-memory DB를 사용합니다.
-H2의 `SELECT FOR UPDATE`는 MySQL과 동작 방식이 완전히 동일하지 않으므로, 정확한 검증은 MySQL 환경(Testcontainers 등)에서 수행해야 합니다.
+`EnrollmentConcurrencyTest`는 H2 in-memory DB를 사용하며 Docker 없이 실행됩니다.
+`EnrollmentConcurrencyMysqlTest`는 Testcontainers로 MySQL 8 컨테이너를 자동 실행하므로 Docker가 필요합니다. `./gradlew test`에서는 제외되며 `./gradlew concurrencyTest`로 별도 실행합니다.
