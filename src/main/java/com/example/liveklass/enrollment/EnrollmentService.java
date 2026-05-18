@@ -56,18 +56,17 @@ public class EnrollmentService {
             );
             return EnrollmentResponse.from(registration, null, klass.getTitle(), null);
         } else {
-            int sequence = klass.assignNextWaitlistSequence();
             ClassRegistration registration = registrationRepository.save(
                     ClassRegistration.builder()
                             .klassId(klassId).userId(userId).status(RegistrationStatus.WAITLISTED).build()
             );
-            waitlistEntryRepository.save(
+            WaitlistEntry entry = waitlistEntryRepository.save(
                     WaitlistEntry.builder()
                             .registrationId(registration.getId())
-                            .klassId(klassId).userId(userId).sequence(sequence).build()
+                            .klassId(klassId).userId(userId).build()
             );
-            int position = waitlistEntryRepository.countByKlassIdAndStatusAndSequenceLessThan(
-                    klassId, WaitlistStatus.WAITING, sequence) + 1;
+            int position = waitlistEntryRepository.countByKlassIdAndStatusAndIdLessThan(
+                    klassId, WaitlistStatus.WAITING, entry.getId()) + 1;
             return EnrollmentResponse.from(registration, null, klass.getTitle(), position);
         }
     }
@@ -151,7 +150,7 @@ public class EnrollmentService {
     }
 
     private void promoteFirstWaiting(Klass klass) {
-        waitlistEntryRepository.findFirstByKlassIdAndStatusOrderBySequenceAsc(
+        waitlistEntryRepository.findFirstByKlassIdAndStatusOrderByIdAsc(
                 klass.getId(), WaitlistStatus.WAITING
         ).ifPresent(entry -> {
             entry.promote();
@@ -178,8 +177,8 @@ public class EnrollmentService {
             Integer position = null;
             if (reg.getStatus() == RegistrationStatus.WAITLISTED) {
                 position = waitlistEntryRepository.findByRegistrationId(reg.getId())
-                        .map(e -> waitlistEntryRepository.countByKlassIdAndStatusAndSequenceLessThan(
-                                e.getKlassId(), WaitlistStatus.WAITING, e.getSequence()) + 1)
+                        .map(e -> waitlistEntryRepository.countByKlassIdAndStatusAndIdLessThan(
+                                e.getKlassId(), WaitlistStatus.WAITING, e.getId()) + 1)
                         .orElse(null);
             }
             return EnrollmentResponse.from(reg, enrollment, title, position);
@@ -203,8 +202,8 @@ public class EnrollmentService {
                     Integer position = null;
                     if (reg.getStatus() == RegistrationStatus.WAITLISTED) {
                         position = waitlistEntryRepository.findByRegistrationId(reg.getId())
-                                .map(e -> waitlistEntryRepository.countByKlassIdAndStatusAndSequenceLessThan(
-                                        e.getKlassId(), WaitlistStatus.WAITING, e.getSequence()) + 1)
+                                .map(e -> waitlistEntryRepository.countByKlassIdAndStatusAndIdLessThan(
+                                        e.getKlassId(), WaitlistStatus.WAITING, e.getId()) + 1)
                                 .orElse(null);
                     }
                     return CreatorEnrollmentResponse.from(reg, enrollment, position);
